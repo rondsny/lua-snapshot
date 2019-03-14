@@ -415,6 +415,10 @@ pdesc(lua_State *L, lua_State *dL, int idx, const char * typename) {
 					size = _lfunc_size((LClosure*)key);
 					snprintf(buff_sz, sizeof(buff_sz), "{%zd}", size);
 					const char * s = lua_tolstring(dL, -1, &l);
+					if(l==0) {
+						s = "?";
+						l = 1;
+					}
 					luaL_addlstring(&b,s,l);
 					luaL_addchar(&b,' ');
 					luaL_addstring(&b, buff_sz);
@@ -446,7 +450,8 @@ pdesc(lua_State *L, lua_State *dL, int idx, const char * typename) {
 			}break;
 
 			case USERDATA: {
-				size = _userdata_size((Udata*)key);
+				UUdata* p = ((UUdata*)key)-1;
+				size = _userdata_size(&(p->uv));
 				snprintf(buff_sz, sizeof(buff_sz), "{%zd}", size);
 				luaL_addstring(&b, typename);
 				luaL_addchar(&b,' ');

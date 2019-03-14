@@ -22,8 +22,11 @@ local function reshape_snapshot(s)
         k = tostring(k)
         k = string.match(k, "userdata: (.+)")
         local t, pk, field = string.match(v, "([^\n]+)\n([%a%d]+) : ([^\n]+)")
-        local tt, size = string.match(t, "([^%s]+) {(%d+)}")
-        t = tt or t
+        local tt, size = string.match(t, "([^%s]*) {(%d+)}")
+        if not tt then
+            error(string.format("invalid snapshot value:%s", v))
+        end
+        t = tt
         size = size and tonumber(size) or 0
         local st = t2simple[t] or string.format("(L@%s)", t)
         reshape[k] = {

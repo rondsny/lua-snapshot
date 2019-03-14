@@ -1,5 +1,10 @@
 #include <lua.h>
 #include <lauxlib.h>
+#include "lstate.h"
+#include "lstring.h"
+#include "ltable.h"
+#include "lfunc.h"
+
 
 static void mark_object(lua_State *L, lua_State *dL, const void * parent, const char * desc);
 
@@ -346,34 +351,116 @@ gen_table_desc(lua_State *dL, luaL_Buffer *b, const void * parent, const char *d
 	luaL_addchar(b, '\n');
 }
 
+static size_t 
+_table_size(Table* p) {
+	size_t size = sizeof(*p);
+	size_t tl = (p->lastfree == NULL)?(0):(sizenode(p));
+	size += tl*sizeof(Node);
+	size += p->sizearray*sizeof(TValue);
+	return size;
+}
+
+static size_t
+_thread_size(struct lua_State* p) {
+	size_t size = sizeof(*p);
+  	size += p->nci*sizeof(CallInfo);
+  	size += p->stacksize*sizeof(*p->stack);
+  	return size;
+}
+
+
+static size_t
+_userdata_size(Udata *p) {
+	int l = sizeudata(p);
+    size_t size = sizeludata(l);
+    return size;
+}
+
+static size_t
+_cfunc_size(CClosure* p) {
+	int n = (int)(p->nupvalues);
+    size_t size = sizeCclosure(n);
+    return size;
+}
+
+
+static size_t
+_lfunc_size(LClosure *p) {
+	int n = (int)(p->nupvalues);
+    size_t size = sizeLclosure(n);
+    return size;
+}
+
 static void
 pdesc(lua_State *L, lua_State *dL, int idx, const char * typename) {
 	lua_pushnil(dL);
+	size_t size = 0;
+	char buff_sz[128] = {0};
 	while (lua_next(dL, idx) != 0) {
 		luaL_Buffer b;
 		luaL_buffinit(L, &b);
 		const void * key = lua_touserdata(dL, -2);
-		if (idx == FUNCTION) {
-			lua_rawgetp(dL, SOURCE, key);
-			if (lua_isnil(dL, -1)) {
-				luaL_addstring(&b,"cfunction\n");
-			} else {
+		switch(idx) {
+			case FUNCTION: {
+				lua_rawgetp(dL, SOURCE, key);
+				if (lua_isnil(dL, -1)) {
+					size = _cfunc_size((CClosure*)key);
+					snprintf(buff_sz, sizeof(buff_sz), "{%zd}", size);
+					luaL_addstring(&b,"cfunction");
+					luaL_addchar(&b,' ');
+					luaL_addstring(&b, buff_sz);
+					luaL_addchar(&b,'\n');
+				} else {
+					size_t l = 0;
+					size = _lfunc_size((LClosure*)key);
+					snprintf(buff_sz, sizeof(buff_sz), "{%zd}", size);
+					const char * s = lua_tolstring(dL, -1, &l);
+					luaL_addlstring(&b,s,l);
+					luaL_addchar(&b,' ');
+					luaL_addstring(&b, buff_sz);
+					luaL_addchar(&b,'\n');
+				}
+				lua_pop(dL, 1);
+			}break;
+
+			case THREAD: {
+				lua_rawgetp(dL, SOURCE, key);
 				size_t l = 0;
+				size = _thread_size((struct lua_State*)key);
+				snprintf(buff_sz, sizeof(buff_sz), "{%zd}", size);
 				const char * s = lua_tolstring(dL, -1, &l);
 				luaL_addlstring(&b,s,l);
+				luaL_addchar(&b,' ');
+				luaL_addstring(&b, buff_sz);
 				luaL_addchar(&b,'\n');
-			}
-			lua_pop(dL, 1);
-		} else if (idx == THREAD) {
-			lua_rawgetp(dL, SOURCE, key);
-			size_t l = 0;
-			const char * s = lua_tolstring(dL, -1, &l);
-			luaL_addlstring(&b,s,l);
-			luaL_addchar(&b,'\n');
-			lua_pop(dL, 1);
-		} else {
-			luaL_addstring(&b, typename);
-			luaL_addchar(&b,'\n');
+				lua_pop(dL, 1);
+			}break;
+
+			case TABLE: {
+				size = _table_size((Table*)key);
+				snprintf(buff_sz, sizeof(buff_sz), "{%zd}", size);
+				luaL_addstring(&b, typename);
+				luaL_addchar(&b,' ');
+				luaL_addstring(&b, buff_sz);
+				luaL_addchar(&b,'\n');
+			}break;
+
+			case USERDATA: {
+				size = _userdata_size((Udata*)key);
+				snprintf(buff_sz, sizeof(buff_sz), "{%zd}", size);
+				luaL_addstring(&b, typename);
+				luaL_addchar(&b,' ');
+				luaL_addstring(&b, buff_sz);
+				luaL_addchar(&b,'\n');
+			}break;
+
+			default: {
+				snprintf(buff_sz, sizeof(buff_sz), "{0}");
+				luaL_addstring(&b, typename);
+				luaL_addchar(&b,' ');
+				luaL_addstring(&b, buff_sz);
+				luaL_addchar(&b,'\n');
+			}break;
 		}
 		lua_pushnil(dL);
 		while (lua_next(dL, -2) != 0) {

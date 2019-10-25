@@ -1,4 +1,8 @@
-local snapshot = require "snapshot"
+local ss = require "snapshot"
+local snapshot = ss.snapshot
+local str2ud = ss.str2ud
+
+local Root = str2ud("0")
 local M = {}
 
 local t2simple = {
@@ -15,14 +19,12 @@ function M.start_snapshot()
 end
 
 
-local function reshape_snapshot(s)
+local function reshape_snapshot(s, full_snapshot)
     local reshape = {}
-    for k, v in pairs(s) do
-        local rk = k
-        k = tostring(k)
-        k = string.match(k, "userdata: (.+)")
+    local function add_reshape(k, v, is_new)
         local t, pk, field = string.match(v, "([^\n]+)\n([%a%d]+) : ([^\n]+)")
-        local tt, size = string.match(t, "([^%s]*) {(%d+)}")
+        local pk = str2ud(pk)
+        local tt, size = string.match(t, "([^%s]*).* {(%d+)}")
         if not tt then
             error(string.format("invalid snapshot value:%s", v))
         end
@@ -30,7 +32,6 @@ local function reshape_snapshot(s)
         size = size and tonumber(size) or 0
         local st = t2simple[t] or string.format("(L@%s)", t)
         reshape[k] = {
-            v = rk,
             t = t,
             size = size,
             st = st,
@@ -38,7 +39,18 @@ local function reshape_snapshot(s)
             field = field,
             item = st .. field,
             fullpath = nil,
+            is_new = is_new,
         }
+        if not s[pk] and not reshape[pk] then
+            local pv = full_snapshot[pk]
+            if pv then
+                add_reshape(pk, pv, false)
+            end
+        end
+    end
+
+    for k, v in pairs(s) do
+        add_reshape(k, v, true)
     end
 
     local function gen_fullname()
@@ -52,7 +64,7 @@ local function reshape_snapshot(s)
                     local pk = entry.parent_key
                     local pentry = reshape[pk]
                     if not pentry then
-                        list[#list+1] = string.format("{%s}", entry.parent_key)
+                        list[#list+1] = pk==Root and "Root" or string.format("{%s}", pk)
                         break
                     elseif pentry.fullpath then
                         list[#list+1] = pentry.fullpath
@@ -96,13 +108,15 @@ local function reshape_snapshot(s)
 
     local ret = {}
     for k,v in pairs(reshape) do
-        ret[#ret+1] = {
-            type = v.t,
-            path = v.fullpath,
-            v = v.v,
-            st = v.st,
-            size = v.size,
-        }
+        if v.is_new then
+            ret[#ret+1] = {
+                type = v.t,
+                path = v.fullpath,
+                v = v.v,
+                st = v.st,
+                size = v.size,
+            }
+        end
     end
     return ret
 end
@@ -120,7 +134,7 @@ function M.dstop_snapshot(len)
         end
     end
 
-    local reshape = reshape_snapshot(diff_s)
+    local reshape = reshape_snapshot(diff_s, end_s)
     table.sort(reshape, function (a, b)
             return a.size > b.size
         end)

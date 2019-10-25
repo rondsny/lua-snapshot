@@ -296,7 +296,7 @@ mark_thread(lua_State *L, lua_State *dL, const void * parent, const char *desc) 
 				const char * name = lua_getlocal(cL, &ar, i);
 				if (name == NULL)
 					break;
-				snprintf(tmp, sizeof(tmp), "%s : %s:%d",name,ar.short_src,ar.currentline);
+				snprintf(tmp, sizeof(tmp), "%s{#%s:%d}",name,ar.short_src,ar.linedefined);
 				mark_object(cL, dL, t, tmp);
 			}
 		}
@@ -433,6 +433,7 @@ pdesc(lua_State *L, lua_State *dL, int idx, const char * typename) {
 				size = _thread_size((struct lua_State*)key);
 				snprintf(buff_sz, sizeof(buff_sz), "{%zd}", size);
 				const char * s = lua_tolstring(dL, -1, &l);
+				luaL_addstring(&b,"thread ");
 				luaL_addlstring(&b,s,l);
 				luaL_addchar(&b,' ');
 				luaL_addstring(&b, buff_sz);
@@ -508,9 +509,25 @@ snapshot(lua_State *L) {
 	return 1;
 }
 
+static int
+l_str2lightuserdata(lua_State* L) {
+	const char* s = lua_tostring(L, 1);
+	void* p = NULL;
+	sscanf(s, "%p", &p);
+	lua_pushlightuserdata(L, p);
+	return 1;
+}
+
+
 int
 luaopen_snapshot(lua_State *L) {
 	luaL_checkversion(L);
-	lua_pushcfunction(L, snapshot);
+	luaL_Reg l[] = {
+		{"snapshot", snapshot},
+		{"str2ud", l_str2lightuserdata},
+		{NULL, NULL},
+	};
+	// lua_pushcfunction(L, snapshot);
+	luaL_newlib(L, l);
 	return 1;
 }

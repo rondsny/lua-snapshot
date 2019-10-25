@@ -46,12 +46,12 @@ lss.dstop_snapshot(40)
 执行输出结果:
 ```
 $ lua dump.lua
------------------- diff snapshot ------------------
-[1] (T)    {0x7fcebfc0a260}->(T)begin_s size:2.0546875Kb
-[2] (T)    {0x7fcec0001008}->(T)tmp : dump.lua:14 size:0.0546875Kb
-[3] (T)    {0x7fcec0001008}->(T)sss : dump.lua:14 size:0.0546875Kb
-[4] (T)    {0x7fcec0001008}->(T)k : dump.lua:14 size:0.0546875Kb
-[5] (L@dump.lua:9)    {0x7fcec0001008}->(L@dump.lua:9)foo : dump.lua:14 size:0.0390625Kb
+----------------- diff snapshot ------------------
+[1] (T)    Root->(T)[registry]->(S)[1]->(T)lss{#dump.lua:0}->(L@./lsnapshot.lua:125)dstop_snapshot->(T)begin_s size:2.0546875Kb
+[2] (T)    Root->(T)[registry]->(S)[1]->(T)k{#dump.lua:0} size:0.0546875Kb
+[3] (T)    Root->(T)[registry]->(S)[1]->(T)tmp{#dump.lua:0} size:0.0546875Kb
+[4] (T)    Root->(T)[registry]->(S)[1]->(T)sss{#dump.lua:0} size:0.0546875Kb
+[5] (L@dump.lua:9)    Root->(T)[registry]->(S)[1]->(L@dump.lua:9)foo{#dump.lua:0} size:0.0390625Kb
 --------------- all size:2.2578125Kb ---------------
 ``` 
 其中`[X]`为索引, 第二个字段包含`(T/U/L/C/S)`.

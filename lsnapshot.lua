@@ -11,6 +11,7 @@ local t2simple = {
     -- ["function"] = "(L)",
     thread = "(S)",
     cfunction = "(C)",
+    string = "(A)",
 }
 
 local begin_s = nil

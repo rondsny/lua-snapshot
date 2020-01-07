@@ -511,7 +511,7 @@ snapshot(lua_State *L) {
 
 static int
 l_str2lightuserdata(lua_State* L) {
-	const char* s = lua_tostring(L, 1);
+	const char* s = luaL_checklstring(L, 1, NULL);
 	void* p = NULL;
 	sscanf(s, "%p", &p);
 	lua_pushlightuserdata(L, p);

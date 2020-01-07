@@ -22,11 +22,8 @@ end
 local function reshape_snapshot(s, full_snapshot)
     local reshape = {}
     local function add_reshape(k, v, is_new)
-        local t, pk, field = string.match(v, "([^\n]+)\n([%a%d]+) : ([^\n]+)")
-        if not t then
-            return
-        end
-        local pk = str2ud(pk)
+        local t, pk, field = string.match(v, "^([^\n]+)\n%(?([%a%d]+)%)? : ([^\n]+)")
+        pk = pk == "nil" and "Root" or str2ud(pk)
         local tt, size = string.match(t, "([^%s]*).* {(%d+)}")
         if not tt then
             error(string.format("invalid snapshot value:%s", v))

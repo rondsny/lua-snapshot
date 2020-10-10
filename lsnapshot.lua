@@ -122,6 +122,11 @@ local function reshape_snapshot(s, full_snapshot)
     return ret
 end
 
+function M.dump_snapshot(len)
+    begin_s = {}
+    M.dstop_snapshot(len)
+    begin_s = nil
+end
 
 function M.dstop_snapshot(len)
     if not begin_s then

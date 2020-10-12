@@ -5,8 +5,21 @@
 #include "ltable.h"
 #include "lfunc.h"
 
+struct snapshot_params {
+	int max_count;
+	int current_mark_count;
+};
 
-static void mark_object(lua_State *L, lua_State *dL, const void * parent, const char * desc);
+static void mark_object(lua_State *L, lua_State *dL, const void * parent, const char * desc, struct snapshot_params* args);
+
+#define check_limit(L, args) do { \
+	if((args)->max_count > 0) { \
+		if(((args)->current_mark_count)++ > (args)->max_count) { \
+			lua_pop((L),1); \
+			return; \
+		} \
+	} \
+} while(0);
 
 #if LUA_VERSION_NUM == 501
 
@@ -43,7 +56,7 @@ lua_getuservalue(lua_State *L, int idx) {
 }
 
 static void
-mark_function_env(lua_State *L, lua_State *dL, const void * t) {
+mark_function_env(lua_State *L, lua_State *dL, const void * t, struct snapshot_params* args) {
 	lua_getfenv(L,-1);
 	if (lua_istable(L,-1)) {
 		mark_object(L, dL, t, "[environment]");
@@ -57,7 +70,7 @@ mark_function_env(lua_State *L, lua_State *dL, const void * t) {
 
 #else
 
-#define mark_function_env(L,dL,t)
+#define mark_function_env(L,dL,t,args)
 
 static int
 is_lightcfunction(lua_State *L, int idx) {
@@ -205,10 +218,12 @@ keystring(lua_State *L, int index, char * buffer) {
 }
 
 static void
-mark_table(lua_State *L, lua_State *dL, const void * parent, const char * desc) {
+mark_table(lua_State *L, lua_State *dL, const void * parent, const char * desc, struct snapshot_params* args) {
 	const void * t = readobject(L, dL, parent, desc);
 	if (t == NULL)
 		return;
+
+	check_limit(L, args);
 
 	bool weakk = false;
 	bool weakv = false;
@@ -227,7 +242,7 @@ mark_table(lua_State *L, lua_State *dL, const void * parent, const char * desc) 
 		lua_pop(L,1);
 
 		luaL_checkstack(L, LUA_MINSTACK, NULL);
-		mark_table(L, dL, t, "[metatable]");
+		mark_table(L, dL, t, "[metatable]", args);
 	}
 
 	lua_pushnil(L);
@@ -237,11 +252,11 @@ mark_table(lua_State *L, lua_State *dL, const void * parent, const char * desc) 
 		} else {
 			char temp[32];
 			const char * desc = keystring(L, -2, temp);
-			mark_object(L, dL, t , desc);
+			mark_object(L, dL, t , desc, args);
 		}
 		if (!weakk) {
 			lua_pushvalue(L,-1);
-			mark_object(L, dL, t , "[key]");
+			mark_object(L, dL, t , "[key]", args);
 		}
 	}
 
@@ -249,36 +264,41 @@ mark_table(lua_State *L, lua_State *dL, const void * parent, const char * desc) 
 }
 
 static void
-mark_userdata(lua_State *L, lua_State *dL, const void * parent, const char *desc) {
+mark_userdata(lua_State *L, lua_State *dL, const void * parent, const char *desc, struct snapshot_params* args) {
 	const void * t = readobject(L, dL, parent, desc);
 	if (t == NULL)
 		return;
+
+	check_limit(L, args);
+
 	if (lua_getmetatable(L, -1)) {
-		mark_table(L, dL, t, "[metatable]");
+		mark_table(L, dL, t, "[metatable]", args);
 	}
 
 	lua_getuservalue(L,-1);
 	if (lua_isnil(L,-1)) {
 		lua_pop(L,2);
 	} else {
-		mark_object(L, dL, t, "[uservalue]");
+		mark_object(L, dL, t, "[uservalue]", args);
 		lua_pop(L,1);
 	}
 }
 
 static void
-mark_function(lua_State *L, lua_State *dL, const void * parent, const char *desc) {
+mark_function(lua_State *L, lua_State *dL, const void * parent, const char *desc, struct snapshot_params* args) {
 	const void * t = readobject(L, dL, parent, desc);
 	if (t == NULL)
 		return;
 
-	mark_function_env(L,dL,t);
+	check_limit(L, args);
+
+	mark_function_env(L,dL,t, args);
 	int i;
 	for (i=1;;i++) {
 		const char *name = lua_getupvalue(L,-1,i);
 		if (name == NULL)
 			break;
-		mark_object(L, dL, t, name[0] ? name : "[upvalue]");
+		mark_object(L, dL, t, name[0] ? name : "[upvalue]", args);
 	}
 	if (lua_iscfunction(L,-1)) {
 		lua_pop(L,1);
@@ -297,10 +317,13 @@ mark_function(lua_State *L, lua_State *dL, const void * parent, const char *desc
 }
 
 static void
-mark_thread(lua_State *L, lua_State *dL, const void * parent, const char *desc) {
+mark_thread(lua_State *L, lua_State *dL, const void * parent, const char *desc, struct snapshot_params* args) {
 	const void * t = readobject(L, dL, parent, desc);
 	if (t == NULL)
 		return;
+
+	check_limit(L, args);
+
 	int level = 0;
 	lua_State *cL = lua_tothread(L,-1);
 	if (cL == L) {
@@ -314,7 +337,7 @@ mark_thread(lua_State *L, lua_State *dL, const void * parent, const char *desc) 
 		for (i=0;i<top;i++) {
 			lua_pushvalue(cL, i+1);
 			sprintf(tmp, "[%d]", i+1);
-			mark_object(cL, dL, cL, tmp);
+			mark_object(cL, dL, cL, tmp, args);
 		}
 	}
 	lua_Debug ar;
@@ -337,7 +360,7 @@ mark_thread(lua_State *L, lua_State *dL, const void * parent, const char *desc) 
 				if (name == NULL)
 					break;
 				snprintf(tmp, sizeof(tmp), "%s{#%s:%d}",name,ar.short_src,ar.linedefined);
-				mark_object(cL, dL, t, tmp);
+				mark_object(cL, dL, t, tmp, args);
 			}
 		}
 
@@ -349,21 +372,21 @@ mark_thread(lua_State *L, lua_State *dL, const void * parent, const char *desc) 
 }
 
 static void 
-mark_object(lua_State *L, lua_State *dL, const void * parent, const char *desc) {
+mark_object(lua_State *L, lua_State *dL, const void * parent, const char *desc, struct snapshot_params* args) {
 	luaL_checkstack(L, LUA_MINSTACK, NULL);
 	int t = lua_type(L, -1);
 	switch (t) {
 	case LUA_TTABLE:
-		mark_table(L, dL, parent, desc);
+		mark_table(L, dL, parent, desc, args);
 		break;
 	case LUA_TUSERDATA:
-		mark_userdata(L, dL, parent, desc);
+		mark_userdata(L, dL, parent, desc, args);
 		break;
 	case LUA_TFUNCTION:
-		mark_function(L, dL, parent, desc);
+		mark_function(L, dL, parent, desc, args);
 		break;
 	case LUA_TTHREAD:
-		mark_thread(L, dL, parent, desc);
+		mark_thread(L, dL, parent, desc, args);
 		break;
 	default:
 		lua_pop(L,1);
@@ -547,12 +570,14 @@ gen_result(lua_State *L, lua_State *dL) {
 static int
 snapshot(lua_State *L) {
 	int i;
+	struct snapshot_params args = {0};
+	args.max_count = luaL_optinteger(L, 1, 0);
 	lua_State *dL = luaL_newstate();
 	for (i=0;i<MARK;i++) {
 		lua_newtable(dL);
 	}
 	lua_pushvalue(L, LUA_REGISTRYINDEX);
-	mark_table(L, dL, NULL, "[registry]");
+	mark_table(L, dL, NULL, "[registry]", &args);
 	gen_result(L, dL);
 	lua_close(dL);
 	return 1;

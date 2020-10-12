@@ -122,7 +122,14 @@ readobject(lua_State *L, lua_State *dL, const void *parent, const char *desc) {
 		return NULL;
 	}
 
-	const void * p = lua_topointer(L, -1);
+	const void * p = NULL;
+	if(t == LUA_TUSERDATA) {
+		const TValue *o = s2v(L->top - 1);
+		// const TValue *o = index2value(L, -1);
+		p = (const void*)uvalue(o);
+	} else {
+		p = (const void*)lua_topointer(L, -1);
+	}
 	if (ismarked(dL, p)) {
 		lua_rawgetp(dL, tidx, p);
 		if (!lua_isnil(dL,-1)) {
@@ -376,8 +383,8 @@ _thread_size(struct lua_State* p) {
 static size_t
 _userdata_size(Udata *p) {
 	#if LUA_VERSION_NUM == 504
-		// int l = sizeudata(p->nuvalue, p->len);
-		return 0;
+		int size = sizeudata(p->nuvalue, p->len);
+		return size;
 	#else
 		int l = sizeudata(p);
 		size_t size = sizeludata(l);
@@ -460,9 +467,8 @@ pdesc(lua_State *L, lua_State *dL, int idx, const char * typename) {
 			}break;
 
 			case USERDATA: {
-				// UUdata* p = ((UUdata*)key)-1;
-				// size = _userdata_size(&(p->uv));
-				size = 0;
+				Udata* p = (Udata*)key;
+				size = _userdata_size(p);
 				snprintf(buff_sz, sizeof(buff_sz), "{%zd}", size);
 				luaL_addstring(&b, typename);
 				luaL_addchar(&b,' ');

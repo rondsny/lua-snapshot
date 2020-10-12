@@ -72,6 +72,39 @@ is_lightcfunction(lua_State *L, int idx) {
 
 #endif
 
+#if LUA_VERSION_NUM == 504
+	/*
+	** True if value of 'alimit' is equal to the real size of the array
+	** part of table 't'. (Otherwise, the array part must be larger than
+	** 'alimit'.)
+	*/
+	#define limitequalsasize(t)	(isrealasize(t) || ispow2((t)->alimit))
+
+
+	/*
+	** Returns the real size of the 'array' array
+	*/
+	static unsigned int _luaH_realasize (const Table *t) {
+	  if (limitequalsasize(t))
+	    return t->alimit;  /* this is the size */
+	  else {
+	    unsigned int size = t->alimit;
+	    /* compute the smallest power of 2 not smaller than 'n' */
+	    size |= (size >> 1);
+	    size |= (size >> 2);
+	    size |= (size >> 4);
+	    size |= (size >> 8);
+	    size |= (size >> 16);
+	#if (UINT_MAX >> 30) > 3
+	    size |= (size >> 32);  /* unsigned int has more than 32 bits */
+	#endif
+	    size++;
+	    lua_assert(ispow2(size) && size/2 < t->alimit && t->alimit < size);
+	    return size;
+	  }
+	}
+#endif
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -364,7 +397,7 @@ _table_size(Table* p) {
 	size_t tl = (p->lastfree == NULL)?(0):(sizenode(p));
 	size += tl*sizeof(Node);
 	#if LUA_VERSION_NUM == 504
-		size += luaH_realasize(p)*sizeof(TValue);
+		size += _luaH_realasize(p)*sizeof(TValue);
 	#else
 		size += p->sizearray*sizeof(TValue);
 	#endif

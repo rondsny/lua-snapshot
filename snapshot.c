@@ -356,7 +356,11 @@ _table_size(Table* p) {
 	size_t size = sizeof(*p);
 	size_t tl = (p->lastfree == NULL)?(0):(sizenode(p));
 	size += tl*sizeof(Node);
-	size += p->sizearray*sizeof(TValue);
+	#if LUA_VERSION_NUM == 504
+		size += luaH_realasize(p)*sizeof(TValue);
+	#else
+		size += p->sizearray*sizeof(TValue);
+	#endif
 	return size;
 }
 
@@ -371,9 +375,14 @@ _thread_size(struct lua_State* p) {
 
 static size_t
 _userdata_size(Udata *p) {
-	int l = sizeudata(p);
-    size_t size = sizeludata(l);
-    return size;
+	#if LUA_VERSION_NUM == 504
+		// int l = sizeudata(p->nuvalue, p->len);
+		return 0;
+	#else
+		int l = sizeudata(p);
+		size_t size = sizeludata(l);
+    	return size;
+	#endif
 }
 
 static size_t
@@ -451,8 +460,9 @@ pdesc(lua_State *L, lua_State *dL, int idx, const char * typename) {
 			}break;
 
 			case USERDATA: {
-				UUdata* p = ((UUdata*)key)-1;
-				size = _userdata_size(&(p->uv));
+				// UUdata* p = ((UUdata*)key)-1;
+				// size = _userdata_size(&(p->uv));
+				size = 0;
 				snprintf(buff_sz, sizeof(buff_sz), "{%zd}", size);
 				luaL_addstring(&b, typename);
 				luaL_addchar(&b,' ');

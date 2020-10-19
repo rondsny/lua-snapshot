@@ -122,17 +122,7 @@ local function reshape_snapshot(s, full_snapshot)
     return ret
 end
 
-function M.dump_snapshot(len)
-    begin_s = {}
-    M.dstop_snapshot(len)
-    begin_s = nil
-end
-
-function M.dstop_snapshot(len)
-    if not begin_s then
-        error("snapshot not begin")
-    end
-    local end_s = snapshot()
+local function diff_with_dump_snapshot(begin_s, end_s, len)
     local diff_s = {}
     for k,v in pairs(end_s) do
         if begin_s[k] == nil then
@@ -162,6 +152,21 @@ function M.dstop_snapshot(len)
         end
     end
     print(string.format("--------------- all size:%sKb ---------------", all_size / 1024))
+end
+
+function M.dump_snapshot(len, max_objcount)
+    begin_s = {}
+    local end_s = snapshot(max_objcount)
+    diff_with_dump_snapshot(end_s, begin_s, len)
+    begin_s = nil
+end
+
+function M.dstop_snapshot(len)
+    if not begin_s then
+        error("snapshot not begin")
+    end
+    local end_s = snapshot()
+    diff_with_dump_snapshot(begin_s, end_s, len)
 end
 
 return M

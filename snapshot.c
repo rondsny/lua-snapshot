@@ -436,7 +436,11 @@ static size_t
 _thread_size(struct lua_State* p) {
 	size_t size = sizeof(*p);
   	size += p->nci*sizeof(CallInfo);
-  	size += p->stacksize*sizeof(*p->stack);
+  	#ifdef stacksize
+  		size += stacksize(p)*sizeof(*p->stack);
+  	#else
+  		size += p->stacksize*sizeof(*p->stack);
+  	#endif
   	return size;
 }
 

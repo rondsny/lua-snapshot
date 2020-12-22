@@ -157,7 +157,7 @@ end
 function M.dump_snapshot(len, max_objcount)
     begin_s = {}
     local end_s = snapshot(max_objcount)
-    diff_with_dump_snapshot(end_s, begin_s, len)
+    diff_with_dump_snapshot(begin_s, end_s, len)
     begin_s = nil
 end
 

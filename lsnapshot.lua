@@ -122,18 +122,26 @@ local function reshape_snapshot(s, full_snapshot)
     return ret
 end
 
-local function diff_with_dump_snapshot(begin_s, end_s, len)
-    local diff_s = {}
-    for k,v in pairs(end_s) do
-        if begin_s[k] == nil then
-            diff_s[k] = v
+local function diff_snapshot(begin_s, end_s)
+    local reshape
+    if not end_s then
+        reshape = reshape_snapshot(begin_s, begin_s)
+    else
+        local diff_s = {}
+        for k,v in pairs(end_s) do
+            if begin_s[k] == nil then
+                diff_s[k] = v
+            end
         end
+        reshape = reshape_snapshot(diff_s, end_s)
     end
-
-    local reshape = reshape_snapshot(diff_s, end_s)
     table.sort(reshape, function (a, b)
             return a.size > b.size
         end)
+    return reshape
+end
+
+local function dump_reshape(reshape, len)
     local rlen = #reshape
     len = len or rlen
     if len < 0 or len > rlen then
@@ -155,10 +163,9 @@ local function diff_with_dump_snapshot(begin_s, end_s, len)
 end
 
 function M.dump_snapshot(len, max_objcount)
-    begin_s = {}
     local end_s = snapshot(max_objcount)
-    diff_with_dump_snapshot(begin_s, end_s, len)
-    begin_s = nil
+    local reshape = diff_snapshot(end_s)
+    dump_reshape(reshape, len)
 end
 
 function M.dstop_snapshot(len)
@@ -166,7 +173,8 @@ function M.dstop_snapshot(len)
         error("snapshot not begin")
     end
     local end_s = snapshot()
-    diff_with_dump_snapshot(begin_s, end_s, len)
+    local reshape = diff_snapshot(end_s)
+    dump_reshape(reshape, len)
 end
 
 return M

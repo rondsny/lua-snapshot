@@ -60,6 +60,7 @@ $ lua dump.lua
 * `(L)`表示lua function类型
 * `(C)`表示cfunction 类型
 * `(S)`表示thread 类型
+* `(A)`表示string 类型
 
 第三个为fullpath路径. `size:1234.5678Kb` 表示的为改对象占用的大小
 

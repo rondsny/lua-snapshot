@@ -23,7 +23,8 @@ end
 local function reshape_snapshot(s, full_snapshot)
     local reshape = {}
     local function add_reshape(k, v, is_new)
-        local t, pk, field = string.match(v, "^([^\n]+)\n%(?([%a%d]+)%)? : ([^\n]+)")
+        local t, pk, field = string.match(v, "^([^\n]+)\n%(?([%a%d]+)%)? : ([^\n]*)")
+        field = field == "" and "[]" or field
         pk = pk == "nil" and "0" or pk
         pk = str2ud(pk)
         local tt, size = string.match(t, "([^%s]*).* {(%d+)}")

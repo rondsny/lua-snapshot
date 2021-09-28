@@ -5,6 +5,24 @@
 #include "ltable.h"
 #include "lfunc.h"
 
+#include "lgc.h"
+
+#ifdef isshared
+	static int
+	check_shared(lua_State* L, int idx, int t) {
+		switch(t) {
+			case LUA_TTABLE:
+			case LUA_TSTRING: {
+				GCObject* o = (GCObject*)lua_topointer(L, idx);
+				return isshared(o);
+			}
+			default:{
+				return 0;
+			} break;
+		}
+	}
+#endif
+
 struct snapshot_params {
 	int max_count;
 	int current_mark_count;
@@ -146,6 +164,12 @@ ismarked(lua_State *dL, const void *p) {
 static const void *
 readobject(lua_State *L, lua_State *dL, const void *parent, const char *desc) {
 	int t = lua_type(L, -1);
+#ifdef isshared
+	if(check_shared(L, -1, t)) {
+		lua_pop(L, 1);
+		return NULL;
+	}
+#endif
 	int tidx = 0;
 	switch (t) {
 	case LUA_TTABLE:
@@ -397,6 +421,12 @@ static void
 mark_object(lua_State *L, lua_State *dL, const void * parent, const char *desc, struct snapshot_params* args) {
 	luaL_checkstack(L, LUA_MINSTACK, NULL);
 	int t = lua_type(L, -1);
+#ifdef isshared
+	if(check_shared(L, -1, t)) {
+		lua_pop(L, 1);
+		return;
+	}
+#endif
 	switch (t) {
 	case LUA_TTABLE:
 		mark_table(L, dL, parent, desc, args);

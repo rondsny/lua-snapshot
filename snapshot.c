@@ -14,12 +14,14 @@
 			case LUA_TTABLE:
 			case LUA_TSTRING: {
 				GCObject* o = (GCObject*)lua_topointer(L, idx);
-				return isshared(o);
+				if(o) {
+					return isshared(o);
+				}
 			}
-			default:{
-				return 0;
-			} break;
+			default:
+			break;
 		}
+		return 0;
 	}
 #endif
 

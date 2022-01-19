@@ -175,7 +175,7 @@ function M.dstop_snapshot(len)
         error("snapshot not begin")
     end
     local end_s = snapshot()
-    local reshape = diff_snapshot(end_s)
+    local reshape = diff_snapshot(begin_s, end_s)
     dump_reshape(reshape, len)
 end
 

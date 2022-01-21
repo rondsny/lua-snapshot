@@ -669,6 +669,15 @@ l_str2lightuserdata(lua_State* L) {
 	return 1;
 }
 
+static int
+l_lightuserdata2str(lua_State* L) {
+	void* p = lua_touserdata(L, 1);
+	char buff[128];
+	snprintf(buff, sizeof(buff), "%p", p);
+	lua_pushstring(L, buff);
+	return 1;
+}
+
 
 int
 luaopen_snapshot(lua_State *L) {
@@ -676,6 +685,7 @@ luaopen_snapshot(lua_State *L) {
 	luaL_Reg l[] = {
 		{"snapshot", snapshot},
 		{"str2ud", l_str2lightuserdata},
+		{"ud2str", l_lightuserdata2str},
 		{NULL, NULL},
 	};
 	// lua_pushcfunction(L, snapshot);

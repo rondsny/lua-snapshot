@@ -132,6 +132,13 @@ local function reshape_snapshot(s, full_snapshot)
                 map[pv] = nil
             end
         end
+        if #parents>0 then
+            local pv1 = string.format("{%s}", ud2str(parents[1].parent))
+            local pk1 = parents[1].field
+            entry.fullpath = concat_path({pk1, pv1})
+        else
+            entry.fullpath = string.format("{%s}", ud2str(addr))
+        end
     end
 
     for addr, entry in pairs(reshape) do

@@ -76,6 +76,7 @@ local function reshape_snapshot(s, full_snapshot)
         return table.concat(t, "->")
     end
 
+    local deep = 0
     local function gen_fullname(addr, list, map)
         list = list or {}
         map  = map or {}
@@ -119,10 +120,20 @@ local function reshape_snapshot(s, full_snapshot)
                 return true
             end
 
+            -- is too deep
+            if deep >= 64 then
+                list[#list+1] = pk
+                list[#list+1] = "!PathTooDeep...!"
+                entry.fullpath = concat_path(list, 2)
+                return true
+            end
+
             local st = parent_entry.st
             local idx = #list+1
             list[idx] = st .. pk
+            deep = deep + 1
             local b = gen_fullname(pv, list, map)
+            deep = deep - 1
             if b then
                 entry.fullpath = concat_path(list, #list-idx+1)
                 return true
@@ -211,6 +222,10 @@ local function dump_reshape(reshape, len)
 
         local len = #entry.parents
         for i=1,len do
+            if i >= 8 then
+                t[i+1] = string.format("\tparents more than %d ...", len-i)
+                break
+            end
             t[i+1] = string.format("\t%s", path_tostring(entry.parents[i]))
         end
         return table.concat(t, "\n")

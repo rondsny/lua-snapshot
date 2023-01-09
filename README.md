@@ -74,7 +74,6 @@ local p = test()
 aa(p)
 
 lss.dstop_snapshot(40)
-lss.generate_graph(id, output, branch)
 ~~~
 
 在需要做快照的地方调用`start_snapshot`, 结尾处调用`dstop_snapshot([count])`, 其中count为要打印的对象个数，不填的话会全部打印。

@@ -49,7 +49,7 @@ aa(p)
 lss.dstop_snapshot(40)
 
 --[[
-$ lua dump.lua 1
+$ lua dump.lua
 ------------------ diff snapshot ------------------
 [1] type:(T) addr:0x5648cc8274f0 size:0.1171875KB
         Root->(T)[registry]->(L@thread ./lsnapshot.lua:266 dump.lua:49 [C])[1]->(T)k{#dump.lua:0}
@@ -83,5 +83,5 @@ $ lua dump.lua 1
 [11] type:(L@dump.lua:23) addr:0x5648cc827590 size:0.0390625KB
         Root->(T)[registry]->(L@thread ./lsnapshot.lua:266 dump.lua:49 [C])[1]->(L@dump.lua:23)dd{#dump.lua:0}
         Root->(T)[registry]->(L@thread ./lsnapshot.lua:266 dump.lua:49 [C])[1]->(L@dump.lua:31)bb{#dump.lua:0}->(L@dump.lua:23)dd
---------------- all size:0.5703125Kb ---------------
+--------------- all size:0.1171875Kb ---------------
 ]]

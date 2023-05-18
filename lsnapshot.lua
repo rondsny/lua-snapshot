@@ -263,6 +263,7 @@ function M.dstop_snapshot(len)
     local end_s = snapshot()
     local reshape = diff_snapshot(begin_s, end_s)
     dump_reshape(reshape, len)
+    begin_s = nil
 end
 
 return M
